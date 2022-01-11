@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>追加劑時間試算</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .txt {
+            opacity: 0;
+            background-color: #ca3f3f52;
+            width: 75%;
+            padding: 8px;
+            transition: all, 1s;
+        }
+
+        .result {
+            color: #ca3f3f;
+            font-family: 'Roboto', sans-serif;
+            font-weight: bold;
+        }
+
+        .footer {
+            display: flex;
+            align-items: center;
+        }
+        .pic {
+            width: 8%;
+            height: 8%;
+            margin-right: 10px;
+        }
+        .footerTxt{
+            margin: 0;
+        }
+
+    </style>
+</head>
+
+<body>
+    <label for="date">請輸入新冠疫苗第二劑接種日期</label><br>
+    <input type="date" name="date" id="date" value="">
+    <p class="txt">您預計接種的時間為(第二劑12週後)：<span class="result"></span></p>
+
+    <div class="footer">
+        <img src="https://i.ibb.co/HDvTFR2/logo3.png" alt="motex logo" class="pic">
+        <p class="footerTxt">華新醫材關心您</p>
+    </div>
+    
+    
+
+    <script>
+        const inputVal = document.querySelector('#date');
+        const txt = document.querySelector('.txt');
+        const result = document.querySelector('.result');
+
+        inputVal.addEventListener('change', function () {
+            // console.log(new Date(new Date(inputVal.value).getTime()+86400000*7*12));
+            const year = new Date(new Date(inputVal.value).getTime() + 86400000 * 7 * 12).getFullYear();
+            const month = new Date(new Date(inputVal.value).getTime() + 86400000 * 7 * 12).getMonth() + 1;
+            const date = new Date(new Date(inputVal.value).getTime() + 86400000 * 7 * 12).getDate();
+            // console.log(`${year}/${month}/${date}`);
+            result.textContent = `${year}/${month}/${date}`;
+            txt.style.opacity = 1;
+        })
+    </script>
+</body>
+
+</html>
