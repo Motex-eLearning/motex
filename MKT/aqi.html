@@ -234,7 +234,14 @@
 
     // 使用政府資料開放平臺 data.gov.tw 資料集 40448 所提供的 JSON 資源網址；
     // 不需自行申請個人 API Key。URL 內的 api_key 是 data.gov.tw 資料集頁面提供之 JSON 資源連結自帶參數，請勿替換成 placeholder。
-    const DATA_GOV_AQI_JSON_URL = 'https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=json&limit=1000&sort=ImportDate%20desc';
+    const DATA_GOV_AQI_SOURCE_URL = 'https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=json&limit=1000&sort=ImportDate%20desc';
+
+    // 最簡單的單一 HTML 解法：先直接讀 data.gov.tw JSON；若瀏覽器因 CORS 擋下，改走 AllOrigins 公開 CORS proxy。
+    // 注意：AllOrigins 是第三方免費服務，適合展示或低流量小工具；正式官網大量流量仍建議改用自家 proxy / 快取。
+    const DATA_GOV_AQI_JSON_URLS = [
+      DATA_GOV_AQI_SOURCE_URL,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(DATA_GOV_AQI_SOURCE_URL)}`
+    ];
 
     // Helper to standardise Traditional Chinese local names (e.g., '台' vs '臺')
     function normalizeName(str) {
@@ -250,6 +257,32 @@
         }
       }
       return fallback;
+    }
+
+    async function fetchJsonWithFallback(urls) {
+      let lastError = null;
+
+      for (const url of urls) {
+        try {
+          const response = await fetch(url, {
+            method: "GET",
+            mode: "cors",
+            credentials: "omit",
+            cache: "no-store"
+          });
+
+          if (!response.ok) throw new Error("HTTP error " + response.status);
+
+          // 用 text() 再 JSON.parse()，避免 proxy 回傳 Content-Type 不是 application/json 時 response.json() 失敗。
+          const text = await response.text();
+          return JSON.parse(text);
+        } catch (error) {
+          lastError = error;
+          console.warn("AQI JSON 讀取路徑失敗，準備嘗試下一個路徑：", url, error);
+        }
+      }
+
+      throw lastError || new Error("All AQI JSON URLs failed");
     }
 
     // Identify color scheme ranges based on precise numerical values
@@ -280,16 +313,7 @@
       const siteBeforeFetch = document.getElementById('siteSelect')?.value || "西屯";
 
       try {
-        const response = await fetch(DATA_GOV_AQI_JSON_URL, {
-          method: "GET",
-          mode: "cors",
-          credentials: "omit",
-          cache: "no-store",
-          headers: { "Accept": "application/json" }
-        });
-        if (!response.ok) throw new Error("HTTP error " + response.status);
-
-        const resJson = await response.json();
+        const resJson = await fetchJsonWithFallback(DATA_GOV_AQI_JSON_URLS);
         if (!resJson || !Array.isArray(resJson.records) || resJson.records.length === 0) {
           throw new Error("Received empty database payload");
         }
