@@ -1,643 +1,431 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>隨身空氣品質小衛士 - 嵌入式小工具</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Noto Sans TC -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AQI 空氣品質小工具</title>
   <style>
-    body {
-      font-family: 'Noto Sans TC', sans-serif;
+    :root {
+      --card-bg: #f8fafc;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #475569;
+      --circle: #94a3b8;
+      --ring: #e2e8f0;
     }
-    .aqi-transition {
-      transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      overflow: hidden;
+    }
+    .wrap {
+      width: 100%;
+      min-height: 110px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 720px;
+      min-height: 104px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--card-bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 2px rgba(15,23,42,.04);
+      transition: .25s ease;
+    }
+    .circle {
+      width: 86px;
+      height: 86px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--circle);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 6px var(--ring);
+      position: relative;
+    }
+    .aqi-label {
+      font-size: 13px;
+      font-weight: 800;
+      opacity: .95;
+      line-height: 1;
+    }
+    .aqi-number {
+      font-size: 28px;
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      margin-top: 4px;
+    }
+    .aqi-status {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, .16);
+      margin-top: 3px;
+      white-space: nowrap;
+    }
+    .content {
+      min-width: 0;
+      flex: 1;
+    }
+    .topline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .pin {
+      color: #64748b;
+      font-size: 17px;
+      line-height: 1;
+    }
+    .place {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    button {
+      border: 0;
+      background: transparent;
+      color: #0f766e;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    button:hover { text-decoration: underline; }
+    .manual {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    select {
+      border: 1px solid #cbd5e1;
+      background: rgba(255,255,255,.85);
+      border-radius: 8px;
+      padding: 3px 8px;
+      color: #334155;
+      font-weight: 700;
+      max-width: 120px;
+    }
+    .advice {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+    .time {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+    @media (max-width: 480px) {
+      .card { gap: 10px; padding: 10px; }
+      .circle { width: 74px; height: 74px; box-shadow: 0 0 0 5px var(--ring); }
+      .aqi-number { font-size: 24px; }
+      .aqi-status { font-size: 10px; }
+      .place { font-size: 17px; }
+      .advice { font-size: 13px; }
     }
   </style>
 </head>
-<body class="bg-transparent overflow-hidden w-full h-screen flex items-center justify-center p-1">
-
-  <!-- Core Compact Widget Card: Auto RWD Height fitted for 110px - 120px iframe -->
-  <div id="widgetCard" class="aqi-transition w-full h-full max-w-xl bg-white border border-slate-100 rounded-2xl p-3 flex items-center gap-3 md:gap-4 shadow-sm relative">
-    
-    <!-- Core Element 2 & 3: AQI Number & Background Light Circle -->
-    <div id="aqiCircle" class="aqi-transition flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full flex flex-col items-center justify-center text-white shadow-md relative ring-4 ring-slate-100">
-      <!-- Soft Ambient Glow -->
-      <div id="glowRing" class="absolute inset-0 rounded-full animate-pulse opacity-20"></div>
-      
-      <span class="text-[8px] md:text-[9px] font-bold opacity-90 tracking-wider uppercase">AQI</span>
-      <span id="aqiNumber" class="text-xl md:text-2xl font-black tracking-tight">--</span>
-      <span id="aqiStatus" class="text-[8px] md:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-black/15 mt-0.5">載入中</span>
-    </div>
-
-    <!-- Core Element 1 & 4: Location Name / Dropdown & One-sentence Advice -->
-    <div class="flex-1 min-w-0 flex flex-col justify-center gap-1">
-      
-      <!-- Location Header Area -->
-      <div id="locationArea" class="flex items-center gap-1.5 flex-wrap min-h-[24px]">
-        <!-- GPS Success View -->
-        <div id="gpsView" class="flex items-center gap-1 text-slate-800">
-          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-500"></i>
-          <h2 id="locationName" class="text-xs md:text-sm font-extrabold truncate">正在偵測定位...</h2>
-          <span id="manualSwitchBtn" onclick="switchToManualMode()" class="text-[10px] text-teal-600 hover:text-teal-700 cursor-pointer ml-2 hover:underline flex-shrink-0">手動切換</span>
-        </div>
-        
-        <!-- Manual Dropdowns View (Swaps smoothly if GPS fails or on click) -->
-        <div id="manualView" class="hidden flex items-center gap-1 flex-wrap w-full">
-          <select id="countySelect" class="bg-white/90 border border-slate-200 text-[10px] md:text-xs rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 font-bold text-slate-700 max-w-[110px]"></select>
-          <select id="siteSelect" class="bg-white/90 border border-slate-200 text-[10px] md:text-xs rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 font-bold text-slate-700 max-w-[110px]"></select>
-          <span id="autoLocateBtn" onclick="retryGeolocation()" class="text-[10px] text-teal-600 hover:text-teal-700 cursor-pointer ml-1 hover:underline flex-shrink-0 flex items-center gap-0.5">
-            <i data-lucide="navigation" class="w-3 h-3"></i>
-            重測定位
-          </span>
-        </div>
+<body>
+  <div class="wrap">
+    <div id="card" class="card">
+      <div class="circle" id="circle">
+        <div class="aqi-label">AQI</div>
+        <div id="aqiNumber" class="aqi-number">--</div>
+        <div id="aqiStatus" class="aqi-status">載入中</div>
       </div>
-      
-      <!-- One-sentence Advice -->
-      <p id="healthAdvice" class="text-[10px] md:text-xs text-slate-600 leading-relaxed font-medium line-clamp-2">
-        正在尋找您的定位並同步政府空氣品質最新數據，請稍候...
-      </p>
-    </div>
 
+      <div class="content">
+        <div class="topline">
+          <span class="pin">◎</span>
+          <div id="gpsView">
+            <span id="place" class="place">正在讀取資料...</span>
+            <button type="button" onclick="showManual()">手動切換</button>
+          </div>
+          <div id="manualView" class="manual">
+            <select id="countySelect"></select>
+            <select id="siteSelect"></select>
+            <button type="button" onclick="retryGps()">重測定位</button>
+          </div>
+        </div>
+        <p id="advice" class="advice">正在同步 AQI 開放資料，請稍候...</p>
+        <div id="publishTime" class="time"></div>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Environmental Ministry AQI Rules Config (Taiwan EPA Standard)
+    // 此 HTML 不直接呼叫 data.gov.tw / data.moenv.gov.tw。
+    // GitHub Action 會定時抓資料並存成同資料夾的 aqi.json，前端只讀自己的 aqi.json，避免 CORS 問題。
+    const LOCAL_AQI_JSON = './aqi.json';
+
     const AQI_RANGES = [
-      {
-        max: 50,
-        label: "良好",
-        cardBg: "bg-emerald-50/90 border-emerald-200/60 text-emerald-800",
-        circleBg: "bg-emerald-500 ring-emerald-100",
-        advice: "空氣品質良好，大口呼吸！今日非常適合進行戶外活動與散步。"
-      },
-      {
-        max: 100,
-        label: "普通",
-        cardBg: "bg-amber-50/90 border-amber-200/60 text-amber-800",
-        circleBg: "bg-amber-500 ring-amber-100",
-        advice: "空氣普通，極少數敏感族群若有不適，出門請稍微留意防護。"
-      },
-      {
-        max: 150,
-        label: "敏感不佳",
-        cardBg: "bg-orange-50/90 border-orange-200/60 text-orange-800",
-        circleBg: "bg-orange-500 ring-orange-100",
-        advice: "空氣對敏感族群不健康！老人、小孩出門請務必戴上醫用口罩。"
-      },
-      {
-        max: 200,
-        label: "全民不佳",
-        cardBg: "bg-rose-50/90 border-rose-200/60 text-rose-800",
-        circleBg: "bg-rose-500 ring-rose-100",
-        advice: "空氣糟糕！大眾健康受影響，出門請務必配戴高效能防護口罩。"
-      },
-      {
-        max: 300,
-        label: "非常不佳",
-        cardBg: "bg-purple-50/90 border-purple-200/60 text-purple-800",
-        circleBg: "bg-purple-600 ring-purple-100",
-        advice: "空氣非常不健康！應避免長時間戶外活動，建議留在室內。"
-      },
-      {
-        max: Infinity,
-        label: "危害",
-        cardBg: "bg-stone-100 border-stone-300 text-stone-900",
-        circleBg: "bg-stone-800 ring-stone-200",
-        advice: "已達健康緊急狀況！所有人應避免戶外活動，留在室內並緊閉窗戶。"
-      }
+      { max: 50, label: '良好', bg:'#ecfdf5', border:'#a7f3d0', text:'#065f46', circle:'#10b981', ring:'#d1fae5', advice:'空氣品質良好，適合一般戶外活動。' },
+      { max: 100, label: '普通', bg:'#fffbeb', border:'#fde68a', text:'#92400e', circle:'#f59e0b', ring:'#fef3c7', advice:'空氣品質普通，極少數敏感族群若有不適，建議減少長時間戶外活動。' },
+      { max: 150, label: '敏感不佳', bg:'#fff7ed', border:'#fed7aa', text:'#9a3412', circle:'#f97316', ring:'#ffedd5', advice:'對敏感族群不健康，老人、小孩及呼吸道敏感者外出請留意。' },
+      { max: 200, label: '全民不佳', bg:'#fff1f2', border:'#fecdd3', text:'#9f1239', circle:'#f43f5e', ring:'#ffe4e6', advice:'空氣品質不佳，一般民眾應減少長時間戶外活動。' },
+      { max: 300, label: '非常不佳', bg:'#faf5ff', border:'#e9d5ff', text:'#6b21a8', circle:'#9333ea', ring:'#f3e8ff', advice:'空氣非常不健康，建議避免戶外活動並留在室內。' },
+      { max: Infinity, label: '危害', bg:'#f5f5f4', border:'#d6d3d1', text:'#1c1917', circle:'#44403c', ring:'#e7e5e4', advice:'已達健康警戒狀態，所有人應避免戶外活動。' }
     ];
 
-    // Comprehensive Taiwan EPA Official 83 Stations Database (with coordinates)
-    const FALLBACK_STATIONS = [
-      // 基隆市
-      { sitename: "基隆", county: "基隆市", aqi: "35", longitude: "121.760", latitude: "25.129", status: "良好" },
-      // 臺北市
-      { sitename: "萬華", county: "臺北市", aqi: "35", longitude: "121.507", latitude: "25.046", status: "良好" },
-      { sitename: "古亭", county: "臺北市", aqi: "35", longitude: "121.529", latitude: "25.022", status: "良好" },
-      { sitename: "松山", county: "臺北市", aqi: "35", longitude: "121.578", latitude: "25.048", status: "良好" },
-      { sitename: "中山", county: "臺北市", aqi: "35", longitude: "121.526", latitude: "25.062", status: "良好" },
-      { sitename: "士林", county: "臺北市", aqi: "35", longitude: "121.524", latitude: "25.090", status: "良好" },
-      { sitename: "大同", county: "臺北市", aqi: "35", longitude: "121.513", latitude: "25.064", status: "良好" },
-      { sitename: "陽明", county: "臺北市", aqi: "35", longitude: "121.549", latitude: "25.162", status: "良好" },
-      // 新北市
-      { sitename: "板橋", county: "新北市", aqi: "35", longitude: "121.458", latitude: "25.012", status: "良好" },
-      { sitename: "土城", county: "新北市", aqi: "35", longitude: "121.444", latitude: "24.975", status: "良好" },
-      { sitename: "新店", county: "新北市", aqi: "35", longitude: "121.541", latitude: "24.978", status: "良好" },
-      { sitename: "永和", county: "新北市", aqi: "35", longitude: "121.516", latitude: "25.012", status: "良好" },
-      { sitename: "菜寮", county: "新北市", aqi: "35", longitude: "121.496", latitude: "25.061", status: "良好" },
-      { sitename: "新莊", county: "新北市", aqi: "35", longitude: "121.450", latitude: "25.038", status: "良好" },
-      { sitename: "林口", county: "新北市", aqi: "35", longitude: "121.391", latitude: "25.078", status: "良好" },
-      { sitename: "淡水", county: "新北市", aqi: "35", longitude: "121.448", latitude: "25.164", status: "良好" },
-      { sitename: "汐止", county: "新北市", aqi: "35", longitude: "121.658", latitude: "25.067", status: "良好" },
-      { sitename: "萬里", county: "新北市", aqi: "35", longitude: "121.689", latitude: "25.168", status: "良好" },
-      { sitename: "富貴角", county: "新北市", aqi: "35", longitude: "121.536", latitude: "25.290", status: "良好" },
-      { sitename: "三重", county: "新北市", aqi: "35", longitude: "121.491", latitude: "25.072", status: "良好" },
-      // 桃園市
-      { sitename: "桃園", county: "桃園市", aqi: "35", longitude: "121.301", latitude: "24.993", status: "良好" },
-      { sitename: "中壢", county: "桃園市", aqi: "35", longitude: "121.224", latitude: "24.961", status: "良好" },
-      { sitename: "平鎮", county: "桃園市", aqi: "35", longitude: "121.203", latitude: "24.945", status: "良好" },
-      { sitename: "龍潭", county: "桃園市", aqi: "35", longitude: "121.216", latitude: "24.863", status: "良好" },
-      { sitename: "觀音", county: "桃園市", aqi: "35", longitude: "121.082", latitude: "25.035", status: "良好" },
-      { sitename: "大園", county: "桃園市", aqi: "35", longitude: "121.196", latitude: "25.061", status: "良好" },
-      // 新竹市
-      { sitename: "新竹", county: "新竹市", aqi: "35", longitude: "120.967", latitude: "24.813", status: "良好" },
-      // 新竹縣
-      { sitename: "竹東", county: "新竹縣", aqi: "35", longitude: "121.085", latitude: "24.740", status: "良好" },
-      { sitename: "湖口", county: "新竹縣", aqi: "35", longitude: "121.044", latitude: "24.902", status: "良好" },
-      // 苗栗縣
-      { sitename: "苗栗", county: "苗栗縣", aqi: "35", longitude: "120.820", latitude: "24.560", status: "良好" },
-      { sitename: "三義", county: "苗栗縣", aqi: "35", longitude: "120.767", latitude: "24.406", status: "良好" },
-      { sitename: "頭份", county: "苗栗縣", aqi: "35", longitude: "120.915", latitude: "24.692", status: "良好" },
-      // 臺中市
-      { sitename: "西屯", county: "臺中市", aqi: "35", longitude: "120.610", latitude: "24.162", status: "良好" },
-      { sitename: "豐原", county: "臺中市", aqi: "35", longitude: "120.719", latitude: "24.256", status: "良好" },
-      { sitename: "沙鹿", county: "臺中市", aqi: "35", longitude: "120.568", latitude: "24.239", status: "良好" },
-      { sitename: "大里", county: "臺中市", aqi: "35", longitude: "120.677", latitude: "24.099", status: "良好" },
-      { sitename: "忠明", county: "臺中市", aqi: "35", longitude: "120.662", latitude: "24.151", status: "良好" },
-      { sitename: "臺灣大道", county: "臺中市", aqi: "35", longitude: "120.6567111", latitude: "24.1589", status: "良好" },
-      // 彰化縣
-      { sitename: "彰化", county: "彰化縣", aqi: "35", longitude: "120.541", latitude: "24.066", status: "良好" },
-      { sitename: "員林", county: "彰化縣", aqi: "35", longitude: "120.574", latitude: "23.959", status: "良好" },
-      { sitename: "二林", county: "彰化縣", aqi: "35", longitude: "120.410", latitude: "23.899", status: "良好" },
-      { sitename: "線西", county: "彰化縣", aqi: "35", longitude: "120.468", latitude: "24.129", status: "良好" },
-      { sitename: "大城", county: "彰化縣", aqi: "35", longitude: "120.274", latitude: "23.853", status: "良好" },
-      // 南投縣
-      { sitename: "南投", county: "南投縣", aqi: "35", longitude: "120.691", latitude: "23.918", status: "良好" },
-      { sitename: "埔里", county: "南投縣", aqi: "35", longitude: "120.968", latitude: "23.965", status: "良好" },
-      { sitename: "竹山", county: "南投縣", aqi: "35", longitude: "120.683", latitude: "23.757", status: "良好" },
-      // 雲林縣
-      { sitename: "斗六", county: "雲林縣", aqi: "35", longitude: "120.431", latitude: "23.709", status: "良好" },
-      { sitename: "崙背", county: "雲林縣", aqi: "35", longitude: "120.354", latitude: "23.758", status: "良好" },
-      { sitename: "臺西", county: "雲林縣", aqi: "35", longitude: "120.198", latitude: "23.701", status: "良好" },
-      { sitename: "麥寮", county: "雲林縣", aqi: "35", longitude: "120.248", latitude: "23.749", status: "良好" },
-      // 嘉義市
-      { sitename: "嘉義", county: "嘉義市", aqi: "35", longitude: "120.449", latitude: "23.480", status: "良好" },
-      // 嘉義縣
-      { sitename: "朴子", county: "嘉義縣", aqi: "35", longitude: "120.244", latitude: "23.467", status: "良好" },
-      { sitename: "新港", county: "嘉義縣", aqi: "35", longitude: "120.347", latitude: "23.553", status: "良好" },
-      // 臺南市
-      { sitename: "臺南", county: "臺南市", aqi: "35", longitude: "120.213", latitude: "22.990", status: "良好" },
-      { sitename: "新營", county: "臺南市", aqi: "35", longitude: "120.317", latitude: "23.312", status: "良好" },
-      { sitename: "善化", county: "臺南市", aqi: "35", longitude: "120.291", latitude: "23.128", status: "良好" },
-      { sitename: "安南", county: "臺南市", aqi: "35", longitude: "120.185", latitude: "23.047", status: "良好" },
-      { sitename: "麻豆", county: "臺南市", aqi: "35", longitude: "120.252", latitude: "23.181", status: "良好" },
-      // 高雄市
-      { sitename: "美濃", county: "高雄市", aqi: "35", longitude: "120.528", latitude: "22.895", status: "良好" },
-      { sitename: "橋頭", county: "高雄市", aqi: "35", longitude: "120.306", latitude: "22.757", status: "良好" },
-      { sitename: "仁武", county: "高雄市", aqi: "35", longitude: "120.346", latitude: "22.689", status: "良好" },
-      { sitename: "鳳山", county: "高雄市", aqi: "35", longitude: "120.358", latitude: "22.627", status: "良好" },
-      { sitename: "大寮", county: "高雄市", aqi: "35", longitude: "120.428", latitude: "22.605", status: "良好" },
-      { sitename: "林園", county: "高雄市", aqi: "35", longitude: "120.414", latitude: "22.508", status: "良好" },
-      { sitename: "楠梓", county: "高雄市", aqi: "35", longitude: "120.322", latitude: "22.727", status: "良好" },
-      { sitename: "左營", county: "高雄市", aqi: "35", longitude: "120.306", latitude: "22.674", status: "良好" },
-      { sitename: "前金", county: "高雄市", aqi: "35", longitude: "120.289", latitude: "22.627", status: "良好" },
-      { sitename: "前鎮", county: "高雄市", aqi: "35", longitude: "120.323", latitude: "22.595", status: "良好" },
-      { sitename: "小港", county: "高雄市", aqi: "35", longitude: "120.337", latitude: "22.565", status: "良好" },
-      { sitename: "復興", county: "高雄市", aqi: "35", longitude: "120.312", latitude: "22.614", status: "良好" },
-      // 屏東縣
-      { sitename: "屏東", county: "屏東縣", aqi: "35", longitude: "120.486", latitude: "22.668", status: "良好" },
-      { sitename: "潮州", county: "屏東縣", aqi: "35", longitude: "120.543", latitude: "22.551", status: "良好" },
-      { sitename: "恆春", county: "屏東縣", aqi: "35", longitude: "120.744", latitude: "22.004", status: "良好" },
-      // 宜蘭縣
-      { sitename: "宜蘭", county: "宜蘭縣", aqi: "35", longitude: "121.753", latitude: "24.757", status: "良好" },
-      { sitename: "冬山", county: "宜蘭縣", aqi: "35", longitude: "121.791", latitude: "24.636", status: "良好" },
-      // 花蓮縣
-      { sitename: "花蓮", county: "花蓮縣", aqi: "35", longitude: "121.601", latitude: "23.987", status: "良好" },
-      // 臺東縣
-      { sitename: "臺東", county: "臺東縣", aqi: "35", longitude: "121.144", latitude: "22.758", status: "良好" },
-      { sitename: "關山", county: "臺東縣", aqi: "35", longitude: "121.163", latitude: "23.047", status: "良好" },
-      // 澎湖縣
-      { sitename: "馬公", county: "澎湖縣", aqi: "35", longitude: "119.579", latitude: "23.571", status: "良好" },
-      // 金門縣
-      { sitename: "金門", county: "金門縣", aqi: "35", longitude: "118.375", latitude: "24.449", status: "良好" },
-      // 連江縣
-      { sitename: "馬祖", county: "連江縣", aqi: "35", longitude: "119.951", latitude: "26.156", status: "良好" },
-      { sitename: "東引", county: "連江縣", aqi: "35", longitude: "120.488", latitude: "26.364", status: "良好" }
-    ];
+    let records = [];
+    let currentCoords = null;
 
-    // Global States
-    // 只保留測站清單與座標作為下拉選單／定位比對用，不再用假 AQI 值顯示。
-    let apiRecords = JSON.parse(JSON.stringify(FALLBACK_STATIONS)).map(station => ({
-      ...station,
-      aqi: "--",
-      status: "載入中"
-    }));
-    let locationCoords = null;
-    let apiLoaded = false;
-    let locationAttemptDone = false;
-    let fallbackTimer = null;
-
-    // 使用政府資料開放平臺 data.gov.tw 資料集 40448 所提供的 JSON 資源網址；
-    // 不需自行申請個人 API Key。URL 內的 api_key 是 data.gov.tw 資料集頁面提供之 JSON 資源連結自帶參數，請勿替換成 placeholder。
-    const DATA_GOV_AQI_SOURCE_URL = 'https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=json&limit=1000&sort=ImportDate%20desc';
-
-    // 最簡單的單一 HTML 解法：先直接讀 data.gov.tw JSON；若瀏覽器因 CORS 擋下，改走 AllOrigins 公開 CORS proxy。
-    // 注意：AllOrigins 是第三方免費服務，適合展示或低流量小工具；正式官網大量流量仍建議改用自家 proxy / 快取。
-    const DATA_GOV_AQI_JSON_URLS = [
-      DATA_GOV_AQI_SOURCE_URL,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(DATA_GOV_AQI_SOURCE_URL)}`
-    ];
-
-    // Helper to standardise Traditional Chinese local names (e.g., '台' vs '臺')
     function normalizeName(str) {
-      if (!str) return "";
-      return String(str).replace(/台/g, "臺").trim();
+      return String(str || '').replace(/台/g, '臺').trim();
     }
 
-    // JSON 欄位目前多為小寫；保留大小寫容錯，避免欄位命名變動時讀不到。
-    function pickField(record, keys, fallback = "") {
+    function pick(record, keys, fallback = '') {
       for (const key of keys) {
-        if (record[key] !== undefined && record[key] !== null && record[key] !== "") {
-          return record[key];
-        }
+        if (record[key] !== undefined && record[key] !== null && record[key] !== '') return record[key];
       }
       return fallback;
     }
 
-    async function fetchJsonWithFallback(urls) {
-      let lastError = null;
-
-      for (const url of urls) {
-        try {
-          const response = await fetch(url, {
-            method: "GET",
-            mode: "cors",
-            credentials: "omit",
-            cache: "no-store"
-          });
-
-          if (!response.ok) throw new Error("HTTP error " + response.status);
-
-          // 用 text() 再 JSON.parse()，避免 proxy 回傳 Content-Type 不是 application/json 時 response.json() 失敗。
-          const text = await response.text();
-          return JSON.parse(text);
-        } catch (error) {
-          lastError = error;
-          console.warn("AQI JSON 讀取路徑失敗，準備嘗試下一個路徑：", url, error);
-        }
-      }
-
-      throw lastError || new Error("All AQI JSON URLs failed");
-    }
-
-    // Identify color scheme ranges based on precise numerical values
     function getRange(aqi) {
-      const numericAqi = parseInt(aqi) || 0;
-      for (const r of AQI_RANGES) {
-        if (numericAqi <= r.max) return r;
-      }
-      return AQI_RANGES[AQI_RANGES.length - 1];
+      const n = parseInt(aqi, 10);
+      if (Number.isNaN(n)) return null;
+      return AQI_RANGES.find(r => n <= r.max) || AQI_RANGES[AQI_RANGES.length - 1];
     }
 
-    // Initialize Widget on startup
-    window.onload = function() {
-      lucide.createIcons();
-      // 1. Instantly construct fully cascading menus with 83 stations to prevent dead links
-      populateDropdowns(apiRecords);
-      // 2. Fetch data.gov.tw AQI JSON resource records
-      fetchDataGovAQIData();
-      // 3. Initiate geolocation lookup loop
-      startLocationSequence();
-    };
-
-    // Fetch data.gov.tw AQI JSON Resource (Dataset 40448 / Code AQX_P_432)
-    async function fetchDataGovAQIData() {
-      apiLoaded = false;
-
-      const countyBeforeFetch = document.getElementById('countySelect')?.value || "臺中市";
-      const siteBeforeFetch = document.getElementById('siteSelect')?.value || "西屯";
-
+    async function loadAQI() {
       try {
-        const resJson = await fetchJsonWithFallback(DATA_GOV_AQI_JSON_URLS);
-        if (!resJson || !Array.isArray(resJson.records) || resJson.records.length === 0) {
-          throw new Error("Received empty database payload");
+        const res = await fetch(`${LOCAL_AQI_JSON}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.records || !Array.isArray(data.records) || data.records.length === 0) {
+          throw new Error('aqi.json records empty');
         }
 
-        const fallbackMap = new Map(
-          FALLBACK_STATIONS.map(station => [
-            `${normalizeName(station.county)}__${normalizeName(station.sitename)}`,
-            station
-          ])
-        );
+        records = data.records.map(r => ({
+          sitename: normalizeName(pick(r, ['sitename', 'SiteName'])),
+          county: normalizeName(pick(r, ['county', 'County'])),
+          aqi: String(pick(r, ['aqi', 'AQI'], '--')),
+          status: String(pick(r, ['status', 'Status'], '')),
+          longitude: String(pick(r, ['longitude', 'Longitude'], '')),
+          latitude: String(pick(r, ['latitude', 'Latitude'], '')),
+          publishtime: String(pick(r, ['publishtime', 'PublishTime', 'importdate', 'ImportDate'], ''))
+        })).filter(r => r.sitename && r.county);
 
-        // 直接以 data.gov.tw JSON 資源回傳資料為主，不再產生仿真值。
-        const officialRecords = resJson.records
-          .map(rec => {
-            const county = normalizeName(pickField(rec, ["county", "County"]));
-            const sitename = normalizeName(pickField(rec, ["sitename", "SiteName"]));
-            const key = `${county}__${sitename}`;
-            const fallback = fallbackMap.get(key) || {};
+        if (records.length === 0) throw new Error('no usable records');
 
-            const rawAqi = pickField(rec, ["aqi", "AQI"], "");
-            const parsedVal = parseInt(rawAqi, 10);
-
-            return {
-              sitename,
-              county,
-              aqi: Number.isNaN(parsedVal) ? "--" : String(parsedVal),
-              status: Number.isNaN(parsedVal) ? "維護中" : (pickField(rec, ["status", "Status"], "") || getRange(parsedVal).label),
-              longitude: String(pickField(rec, ["longitude", "Longitude"], fallback.longitude || "")),
-              latitude: String(pickField(rec, ["latitude", "Latitude"], fallback.latitude || "")),
-              pollutant: pickField(rec, ["pollutant", "Pollutant"], ""),
-              publishtime: pickField(rec, ["publishtime", "PublishTime", "ImportDate"], ""),
-              siteid: pickField(rec, ["siteid", "SiteId", "SiteID"], "")
-            };
-          })
-          .filter(rec => rec.county && rec.sitename);
-
-        if (officialRecords.length === 0) {
-          throw new Error("No usable AQI records found");
-        }
-
-        apiRecords = officialRecords;
-        populateDropdowns(apiRecords, countyBeforeFetch, siteBeforeFetch);
-        console.log("data.gov.tw JSON 資源同步完成，AQI 已改用開放資料真實值。");
+        buildDropdowns();
+        startGps();
       } catch (err) {
-        console.warn("data.gov.tw AQI JSON 資源讀取失敗，保留暫無資料狀態，不使用亂數。", err);
-
-        // JSON 讀取失敗時顯示「暫無資料」，避免與資料庫真實值對不起來。
-        apiRecords = JSON.parse(JSON.stringify(FALLBACK_STATIONS)).map(station => ({
-          ...station,
-          aqi: "--",
-          status: "JSON 讀取失敗"
-        }));
-        populateDropdowns(apiRecords, countyBeforeFetch, siteBeforeFetch);
-      } finally {
-        apiLoaded = true;
-        onDataAndLocationReady();
+        console.warn(err);
+        renderError('讀取失敗', '找不到或無法讀取同資料夾的 aqi.json。請先到 GitHub Actions 手動執行「Update AQI JSON」。');
       }
     }
 
-    // Trigger standard geolocation lookup with a strict 2.5-second timeout window
-    function startLocationSequence() {
-      locationCoords = null;
-      locationAttemptDone = false;
+    function buildDropdowns() {
+      const countySelect = document.getElementById('countySelect');
+      const siteSelect = document.getElementById('siteSelect');
+      const counties = [...new Set(records.map(r => r.county))].sort();
 
-      fallbackTimer = setTimeout(() => {
-        locationAttemptDone = true;
-        onDataAndLocationReady(); // Seamlessly fall back to manual menu if location hangs
-      }, 2500);
+      countySelect.innerHTML = counties.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            clearTimeout(fallbackTimer);
-            locationCoords = {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            };
-            locationAttemptDone = true;
-            onDataAndLocationReady();
-          },
-          (error) => {
-            clearTimeout(fallbackTimer);
-            locationAttemptDone = true;
-            onDataAndLocationReady(); // Fail silently directly to manual dropdowns
+      countySelect.onchange = () => {
+        buildSiteOptions(countySelect.value);
+        renderBySelected();
+      };
+      siteSelect.onchange = renderBySelected;
+
+      const defaultCounty = counties.includes('臺中市') ? '臺中市' : counties[0];
+      countySelect.value = defaultCounty;
+      buildSiteOptions(defaultCounty, '忠明');
+    }
+
+    function buildSiteOptions(county, preferredSite = '') {
+      const siteSelect = document.getElementById('siteSelect');
+      const sites = records
+        .filter(r => normalizeName(r.county) === normalizeName(county))
+        .map(r => r.sitename)
+        .sort();
+
+      siteSelect.innerHTML = sites.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+      if (preferredSite && sites.includes(preferredSite)) {
+        siteSelect.value = preferredSite;
+      } else if (sites.length) {
+        siteSelect.value = sites[0];
+      }
+    }
+
+    function startGps() {
+      if (!navigator.geolocation) {
+        showDefault();
+        return;
+      }
+
+      const timeout = setTimeout(showDefault, 2500);
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          clearTimeout(timeout);
+          currentCoords = {
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude
+          };
+          const closest = findClosestStation(currentCoords.lat, currentCoords.lon);
+          if (closest) {
+            renderRecord(closest, true);
+            alignDropdown(closest);
+          } else {
+            showDefault();
           }
-        );
-      } else {
-        clearTimeout(fallbackTimer);
-        locationAttemptDone = true;
-        onDataAndLocationReady();
+        },
+        () => {
+          clearTimeout(timeout);
+          showDefault();
+        },
+        { timeout: 2500, maximumAge: 600000, enableHighAccuracy: false }
+      );
+    }
+
+    function showDefault() {
+      const defaultRecord =
+        records.find(r => r.county === '臺中市' && r.sitename === '忠明') ||
+        records.find(r => r.county === '臺中市') ||
+        records[0];
+
+      if (defaultRecord) {
+        renderRecord(defaultRecord, true);
+        alignDropdown(defaultRecord);
       }
     }
 
-    // Coordinates routing engine for layout assignment
-    function onDataAndLocationReady() {
-      if (!apiLoaded || !locationAttemptDone) return; // Wait until API fetch and geolocation attempt both complete
+    function showManual() {
+      document.getElementById('gpsView').style.display = 'none';
+      document.getElementById('manualView').style.display = 'flex';
+      renderBySelected();
+    }
 
-      if (locationCoords) {
-        // Calculate the closest active monitoring station from our 83-station database
-        const closest = findClosestStation(locationCoords.latitude, locationCoords.longitude, apiRecords);
-        if (closest) {
-          showGpsView(closest);
-          // Auto-align the dropdown options in the background for a seamless user experience
-          selectDropdownStation(closest.county, closest.sitename);
-        } else {
-          switchToManualMode();
-        }
+    function retryGps() {
+      document.getElementById('manualView').style.display = 'none';
+      document.getElementById('gpsView').style.display = 'inline';
+      document.getElementById('place').textContent = '重新定位中...';
+      startGps();
+    }
+
+    function renderBySelected() {
+      const county = document.getElementById('countySelect').value;
+      const site = document.getElementById('siteSelect').value;
+      const record = records.find(r => normalizeName(r.county) === normalizeName(county) && normalizeName(r.sitename) === normalizeName(site));
+      if (record) renderRecord(record, false);
+    }
+
+    function alignDropdown(record) {
+      const countySelect = document.getElementById('countySelect');
+      countySelect.value = record.county;
+      buildSiteOptions(record.county, record.sitename);
+    }
+
+    function renderRecord(record, gpsMode) {
+      const n = parseInt(record.aqi, 10);
+      const range = getRange(n);
+      const card = document.getElementById('card');
+      const circle = document.getElementById('circle');
+
+      document.getElementById('place').textContent = `${record.county}・${record.sitename}`;
+      document.getElementById('aqiNumber').textContent = Number.isNaN(n) ? '--' : String(n);
+
+      if (!range) {
+        document.getElementById('aqiStatus').textContent = record.status || '暫無資料';
+        document.getElementById('advice').textContent = '此測站目前未提供有效 AQI 數值，請手動切換鄰近測站。';
+        applyTheme('#f8fafc', '#e2e8f0', '#334155', '#94a3b8', '#e2e8f0');
       } else {
-        switchToManualMode(); // Silently fallback with zero visual alert noise
+        document.getElementById('aqiStatus').textContent = record.status || range.label;
+        document.getElementById('advice').textContent = range.advice;
+        applyTheme(range.bg, range.border, range.text, range.circle, range.ring);
+      }
+
+      document.getElementById('publishTime').textContent = record.publishtime ? `資料時間：${record.publishtime}` : '';
+
+      if (gpsMode) {
+        document.getElementById('gpsView').style.display = 'inline';
+        document.getElementById('manualView').style.display = 'none';
       }
     }
 
-    // Distance calculation formula using geographic coordinates (Haversine Formula)
-    function findClosestStation(lat, lon, records) {
+    function renderError(status, message) {
+      document.getElementById('place').textContent = 'AQI 資料尚未建立';
+      document.getElementById('aqiNumber').textContent = '--';
+      document.getElementById('aqiStatus').textContent = status;
+      document.getElementById('advice').textContent = message;
+      document.getElementById('publishTime').textContent = '';
+      applyTheme('#f8fafc', '#e2e8f0', '#334155', '#94a3b8', '#e2e8f0');
+    }
+
+    function applyTheme(bg, border, text, circle, ring) {
+      const root = document.documentElement;
+      root.style.setProperty('--card-bg', bg);
+      root.style.setProperty('--border', border);
+      root.style.setProperty('--text', text);
+      root.style.setProperty('--muted', text);
+      root.style.setProperty('--circle', circle);
+      root.style.setProperty('--ring', ring);
+    }
+
+    function findClosestStation(lat, lon) {
       let closest = null;
-      let minDistance = Infinity;
+      let min = Infinity;
 
-      for (const record of records) {
-        const rLat = parseFloat(record.latitude);
-        const rLon = parseFloat(record.longitude);
-        if (isNaN(rLat) || isNaN(rLon)) continue;
+      for (const r of records) {
+        const rLat = parseFloat(r.latitude);
+        const rLon = parseFloat(r.longitude);
+        if (Number.isNaN(rLat) || Number.isNaN(rLon)) continue;
 
-        const dist = getDistance(lat, lon, rLat, rLon);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closest = record;
+        const d = distanceKm(lat, lon, rLat, rLon);
+        if (d < min) {
+          min = d;
+          closest = r;
         }
       }
       return closest;
     }
 
-    // Standard spherical distance math
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // Earth radius in km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
+    function distanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const toRad = deg => deg * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // Present active layout to show GPS detected station details
-    function showGpsView(siteRecord) {
-      document.getElementById('gpsView').classList.remove('hidden');
-      document.getElementById('manualView').classList.add('hidden');
-      
-      document.getElementById('locationName').innerText = `${siteRecord.county} · ${siteRecord.sitename}`;
-      renderWidget(siteRecord);
-      lucide.createIcons();
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
     }
 
-    // Quietly switch display over to manual selector dropdown arrays
-    function switchToManualMode() {
-      document.getElementById('gpsView').classList.add('hidden');
-      document.getElementById('manualView').classList.remove('hidden');
-      
-      const countySelect = document.getElementById('countySelect');
-      const siteSelect = document.getElementById('siteSelect');
-      renderBySiteName(countySelect.value, siteSelect.value);
-      lucide.createIcons();
-    }
-
-    // Align dropdown selectors to display chosen County and Station
-    function selectDropdownStation(county, sitename) {
-      const countySelect = document.getElementById('countySelect');
-      countySelect.value = county;
-      window.updateSiteDropdown(county, sitename);
-    }
-
-    // Refresh geographic position manually
-    function retryGeolocation() {
-      document.getElementById('manualView').classList.add('hidden');
-      document.getElementById('gpsView').classList.remove('hidden');
-      document.getElementById('locationName').innerText = "重新定位中...";
-      
-      // Refresh JSON resource in memory first to ensure fresh values
-      fetchDataGovAQIData();
-      startLocationSequence();
-    }
-
-    // Reconstruct and dynamically bind double selector menu sets
-    function populateDropdowns(records, preferredCounty = "臺中市", preferredSite = "西屯") {
-      const countySelect = document.getElementById('countySelect');
-      const siteSelect = document.getElementById('siteSelect');
-
-      // Map unique counties with matching station arrays
-      const countyMap = {};
-      records.forEach(rec => {
-        if (!rec.county || !rec.sitename) return;
-        if (!countyMap[rec.county]) {
-          countyMap[rec.county] = [];
-        }
-        countyMap[rec.county].push(rec.sitename);
-      });
-
-      const counties = Object.keys(countyMap).sort();
-
-      countySelect.innerHTML = '';
-      counties.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.textContent = c;
-        countySelect.appendChild(opt);
-      });
-
-      // Declare site cascading builder
-      window.updateSiteDropdown = function(selectedCounty, selectedSite = null) {
-        const sites = countyMap[selectedCounty] || [];
-        siteSelect.innerHTML = '';
-        sites.sort().forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s;
-          opt.textContent = s;
-          siteSelect.appendChild(opt);
-        });
-
-        if (selectedSite && sites.includes(selectedSite)) {
-          siteSelect.value = selectedSite;
-        } else if (sites.length > 0) {
-          siteSelect.value = sites[0];
-        }
-      };
-
-      // Handle county change
-      countySelect.onchange = function() {
-        window.updateSiteDropdown(countySelect.value);
-        renderBySiteName(countySelect.value, siteSelect.value);
-      };
-
-      // Handle station change
-      siteSelect.onchange = function() {
-        renderBySiteName(countySelect.value, siteSelect.value);
-      };
-
-      // Default load configuration to the previous station, otherwise Taichung City / Xitun Station
-      const normalizedPreferredCounty = normalizeName(preferredCounty);
-      const normalizedPreferredSite = normalizeName(preferredSite);
-      const defaultCounty = counties.includes(normalizedPreferredCounty)
-        ? normalizedPreferredCounty
-        : (counties.includes("臺中市") ? "臺中市" : counties[0]);
-
-      countySelect.value = defaultCounty;
-      window.updateSiteDropdown(defaultCounty, normalizedPreferredSite);
-      renderBySiteName(defaultCounty, siteSelect.value || normalizedPreferredSite);
-    }
-
-    // Trigger update routine via dropdown selections
-    function renderBySiteName(county, sitename) {
-      const record = apiRecords.find(r => 
-        normalizeName(r.county) === normalizeName(county) && 
-        normalizeName(r.sitename) === normalizeName(sitename)
-      );
-      if (record) {
-        renderWidget(record);
-      }
-    }
-
-    // Core renderer mapping numerical AQI to color schemes and advice bubbles
-    function renderWidget(siteData) {
-      const aqiVal = siteData.aqi;
-      const aqiNum = parseInt(aqiVal);
-
-      const widgetCard = document.getElementById('widgetCard');
-      const aqiCircle = document.getElementById('aqiCircle');
-      const glowRing = document.getElementById('glowRing');
-
-      // 1. Guard against maintenance / blank states
-      if (isNaN(aqiNum)) {
-        const statusText = siteData.status || "暫無資料";
-        document.getElementById('aqiNumber').innerText = "--";
-        document.getElementById('aqiStatus').innerText = statusText;
-        document.getElementById('healthAdvice').innerText = statusText === "JSON 讀取失敗"
-          ? "目前無法讀取 data.gov.tw 的 AQI JSON 資源，請稍後重新整理或確認網路／瀏覽器跨網域設定。"
-          : "該測站目前暫無有效 AQI 數值，請點擊「手動切換」參考鄰近測站數據。";
-
-        // Remove active range styles
-        AQI_RANGES.forEach(r => {
-          r.cardBg.split(' ').forEach(c => widgetCard.classList.remove(c));
-          r.circleBg.split(' ').forEach(c => {
-            aqiCircle.classList.remove(c);
-            glowRing.classList.remove(c);
-          });
-        });
-
-        // Apply neutral slate styling for maintenance mode
-        "bg-slate-50 border-slate-200 text-slate-700".split(' ').forEach(c => widgetCard.classList.add(c));
-        "bg-slate-400 ring-slate-100".split(' ').forEach(c => {
-          aqiCircle.classList.add(c);
-          glowRing.classList.add(c);
-        });
-        return;
-      }
-
-      // 2. Map color ranges
-      const matched = getRange(aqiNum);
-
-      // Apply texts
-      document.getElementById('aqiNumber').innerText = siteData.aqi || "--";
-      document.getElementById('aqiStatus').innerText = siteData.status || matched.label;
-      document.getElementById('healthAdvice').innerText = matched.advice;
-
-      // Clean old styles
-      AQI_RANGES.forEach(r => {
-        r.cardBg.split(' ').forEach(c => widgetCard.classList.remove(c));
-        r.circleBg.split(' ').forEach(c => {
-          aqiCircle.classList.remove(c);
-          glowRing.classList.remove(c);
-        });
-      });
-      "bg-slate-50 border-slate-200 text-slate-700".split(' ').forEach(c => widgetCard.classList.remove(c));
-      "bg-slate-400 ring-slate-100".split(' ').forEach(c => {
-        aqiCircle.classList.remove(c);
-        glowRing.classList.remove(c);
-      });
-
-      // Apply new range styles
-      matched.cardBg.split(' ').forEach(c => widgetCard.classList.add(c));
-      matched.circleBg.split(' ').forEach(c => {
-        aqiCircle.classList.add(c);
-        glowRing.classList.add(c);
-      });
-    }
+    loadAQI();
   </script>
 </body>
 </html>
