@@ -243,17 +243,19 @@
       const siteSelect = document.getElementById('siteSelect');
       const counties = [...new Set(records.map(r => r.county))].sort();
 
-      countySelect.innerHTML = counties.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      countySelect.innerHTML = '<option value="">選擇縣市</option>' +
+        counties.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      siteSelect.innerHTML = '<option value="">選擇測站</option>';
 
       countySelect.onchange = () => {
-        buildSiteOptions(countySelect.value);
+        if (countySelect.value) {
+          buildSiteOptions(countySelect.value);
+        } else {
+          siteSelect.innerHTML = '<option value="">選擇測站</option>';
+        }
         renderBySelected();
       };
       siteSelect.onchange = renderBySelected;
-
-      const defaultCounty = counties.includes('臺中市') ? '臺中市' : counties[0];
-      countySelect.value = defaultCounty;
-      buildSiteOptions(defaultCounty, '忠明');
     }
 
     function buildSiteOptions(county, preferredSite = '') {
@@ -263,25 +265,36 @@
         .map(r => r.sitename)
         .sort();
 
-      siteSelect.innerHTML = sites.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+      siteSelect.innerHTML = '<option value="">選擇測站</option>' +
+        sites.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
       if (preferredSite && sites.includes(preferredSite)) {
         siteSelect.value = preferredSite;
-      } else if (sites.length) {
-        siteSelect.value = sites[0];
+      } else {
+        siteSelect.value = '';
       }
     }
 
     function startGps() {
+      let resolved = false;
+
+      const fallbackToManual = () => {
+        if (resolved) return;
+        resolved = true;
+        showManualWithoutDefault();
+      };
+
       if (!navigator.geolocation) {
-        showDefault();
+        fallbackToManual();
         return;
       }
 
-      const timeout = setTimeout(showDefault, 2500);
+      const timeout = setTimeout(fallbackToManual, 2500);
 
       navigator.geolocation.getCurrentPosition(
         pos => {
+          if (resolved) return;
+          resolved = true;
           clearTimeout(timeout);
           currentCoords = {
             lat: pos.coords.latitude,
@@ -292,33 +305,37 @@
             renderRecord(closest, true);
             alignDropdown(closest);
           } else {
-            showDefault();
+            showManualWithoutDefault();
           }
         },
         () => {
           clearTimeout(timeout);
-          showDefault();
+          fallbackToManual();
         },
         { timeout: 2500, maximumAge: 600000, enableHighAccuracy: false }
       );
     }
 
-    function showDefault() {
-      const defaultRecord =
-        records.find(r => r.county === '臺中市' && r.sitename === '忠明') ||
-        records.find(r => r.county === '臺中市') ||
-        records[0];
-
-      if (defaultRecord) {
-        renderRecord(defaultRecord, true);
-        alignDropdown(defaultRecord);
-      }
+    function showManualWithoutDefault() {
+      document.getElementById('gpsView').style.display = 'none';
+      document.getElementById('manualView').style.display = 'flex';
+      document.getElementById('aqiNumber').textContent = '--';
+      document.getElementById('aqiStatus').textContent = '請選擇';
+      document.getElementById('advice').textContent = '請選擇縣市與測站查看 AQI。';
+      document.getElementById('publishTime').textContent = '';
+      applyTheme('#f8fafc', '#e2e8f0', '#334155', '#94a3b8', '#e2e8f0');
     }
 
     function showManual() {
       document.getElementById('gpsView').style.display = 'none';
       document.getElementById('manualView').style.display = 'flex';
-      renderBySelected();
+      const county = document.getElementById('countySelect').value;
+      const site = document.getElementById('siteSelect').value;
+      if (county && site) {
+        renderBySelected();
+      } else {
+        showManualWithoutDefault();
+      }
     }
 
     function retryGps() {
@@ -331,6 +348,10 @@
     function renderBySelected() {
       const county = document.getElementById('countySelect').value;
       const site = document.getElementById('siteSelect').value;
+      if (!county || !site) {
+        showManualWithoutDefault();
+        return;
+      }
       const record = records.find(r => normalizeName(r.county) === normalizeName(county) && normalizeName(r.sitename) === normalizeName(site));
       if (record) renderRecord(record, false);
     }
