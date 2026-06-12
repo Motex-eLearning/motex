@@ -22,31 +22,49 @@ jobs:
 
           curl -sS -L --retry 3 --retry-delay 5 \
             "https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=JSON&limit=1000&sort=ImportDate+desc" \
-            -o /tmp/aqi.json
+            -o /tmp/source-aqi.json
 
           echo "===== Download preview ====="
-          head -c 500 /tmp/aqi.json
+          head -c 500 /tmp/source-aqi.json
           echo ""
           echo "============================"
 
           python3 - <<'PY'
           import json
+          from datetime import datetime, timezone
 
-          with open("/tmp/aqi.json", "r", encoding="utf-8") as f:
+          source_path = "/tmp/source-aqi.json"
+          target_path = "MKT/aqi.json"
+
+          with open(source_path, "r", encoding="utf-8") as f:
               data = json.load(f)
 
-          records = data.get("records")
+          # data.gov.tw 這個 JSON 資源目前最外層是陣列 []
+          # 為了讓 aqi.html 好讀取，這裡統一包成 {"records": [...]}
+          if isinstance(data, list):
+              records = data
+          elif isinstance(data, dict):
+              records = data.get("records") or data.get("Records")
+          else:
+              raise SystemExit("錯誤：JSON 格式不是陣列或物件")
 
           if not isinstance(records, list):
-              raise SystemExit("錯誤：JSON 裡沒有 records 陣列")
+              raise SystemExit("錯誤：無法取得 AQI records 陣列")
 
           if len(records) == 0:
-              raise SystemExit("錯誤：records 是空的")
+              raise SystemExit("錯誤：AQI records 是空的")
 
-          print(f"成功下載 {len(records)} 筆 AQI 資料")
+          output = {
+              "source": "data.gov.tw AQI JSON resource",
+              "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "records": records
+          }
+
+          with open(target_path, "w", encoding="utf-8") as f:
+              json.dump(output, f, ensure_ascii=False, indent=2)
+
+          print(f"成功整理 {len(records)} 筆 AQI 資料到 {target_path}")
           PY
-
-          cp /tmp/aqi.json MKT/aqi.json
 
       - name: Commit AQI JSON
         run: |
