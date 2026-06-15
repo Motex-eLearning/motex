@@ -3,10 +3,16 @@ name: Update AQI JSON
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 * * * *"
+    # GitHub Actions 使用 UTC 時間
+    # 每小時嘗試 3 次，提高排程成功觸發機率
+    - cron: "7,27,47 * * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: update-aqi-json
+  cancel-in-progress: false
 
 jobs:
   update-aqi-json:
@@ -39,8 +45,8 @@ jobs:
           with open(source_path, "r", encoding="utf-8") as f:
               data = json.load(f)
 
-          # data.gov.tw 這個 JSON 資源目前最外層是陣列 []
-          # 為了讓 aqi.html 好讀取，這裡統一包成 {"records": [...]}
+          # data.gov.tw AQI JSON 資源目前最外層可能是陣列 []
+          # 這裡統一整理成 {"records": [...]}，方便 aqi.html 讀取
           if isinstance(data, list):
               records = data
           elif isinstance(data, dict):
