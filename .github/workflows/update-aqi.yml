@@ -26,9 +26,59 @@ jobs:
         run: |
           mkdir -p MKT
 
-          curl -sS -L --retry 3 --retry-delay 5 \
-            "https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=JSON&limit=1000&sort=ImportDate+desc" \
-            -o /tmp/source-aqi.json
+          AQI_URL="https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=af57253c-e838-46da-a1f5-12b43afd75f3&format=JSON&limit=1000&sort=ImportDate+desc"
+
+          echo "開始下載 AQI JSON..."
+
+          for i in 1 2 3 4 5 6 7 8; do
+            echo "第 $i 次嘗試下載..."
+
+            if curl --http1.1 -sS -L --fail \
+              --connect-timeout 20 \
+              --max-time 180 \
+              --retry 3 \
+              --retry-delay 10 \
+              --retry-all-errors \
+              "$AQI_URL" \
+              -o /tmp/source-aqi.json; then
+
+              echo "curl 下載完成，開始檢查 JSON 格式..."
+
+              if python3 - <<'PY'
+          import json
+
+          with open("/tmp/source-aqi.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          if isinstance(data, list):
+              records = data
+          elif isinstance(data, dict):
+              records = data.get("records") or data.get("Records")
+          else:
+              raise SystemExit("JSON 格式不是陣列或物件")
+
+          if not isinstance(records, list) or len(records) == 0:
+              raise SystemExit("AQI records 為空或格式錯誤")
+
+          print(f"JSON 驗證成功，共 {len(records)} 筆資料")
+          PY
+              then
+                echo "下載與驗證成功"
+                break
+              else
+                echo "JSON 驗證失敗，準備重試..."
+              fi
+            else
+              echo "curl 下載失敗，準備重試..."
+            fi
+
+            if [ "$i" -eq 8 ]; then
+              echo "連續 8 次下載或驗證失敗，停止執行。"
+              exit 1
+            fi
+
+            sleep 30
+          done
 
           echo "===== Download preview ====="
           head -c 500 /tmp/source-aqi.json
@@ -45,8 +95,6 @@ jobs:
           with open(source_path, "r", encoding="utf-8") as f:
               data = json.load(f)
 
-          # data.gov.tw AQI JSON 資源目前最外層可能是陣列 []
-          # 這裡統一整理成 {"records": [...]}，方便 aqi.html 讀取
           if isinstance(data, list):
               records = data
           elif isinstance(data, dict):
