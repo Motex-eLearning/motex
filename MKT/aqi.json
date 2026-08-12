@@ -1,6 +1,6 @@
 {
   "source": "data.gov.tw AQI JSON resource",
-  "updated_at_utc": "2026-08-12T11:13:07.368153+00:00",
+  "updated_at_utc": "2026-08-12T12:03:34.213686+00:00",
   "records": [
     {
       "sitename": "基隆",
@@ -1617,13 +1617,13 @@
     {
       "sitename": "宜蘭",
       "county": "宜蘭縣",
-      "aqi": "0",
+      "aqi": "68",
       "pollutant": "細懸浮微粒",
       "status": "普通",
       "so2": "0.5",
       "co": "0.33",
-      "o3": "",
-      "o3_8hr": "47",
+      "o3": "52",
+      "o3_8hr": "48",
       "pm10": "42",
       "pm2.5": "20",
       "no2": "4",
