@@ -1,6 +1,6 @@
 {
   "source": "data.gov.tw AQI JSON resource",
-  "updated_at_utc": "2026-08-24T07:12:30.385992+00:00",
+  "updated_at_utc": "2026-08-24T08:07:51.698862+00:00",
   "records": [
     {
       "sitename": "基隆",
@@ -932,7 +932,7 @@
       "publishtime": "2026/08/24 15:00:00",
       "co_8hr": "0.1",
       "pm2.5_avg": "2",
-      "pm10_avg": "3",
+      "pm10_avg": "",
       "so2_avg": "0",
       "longitude": "120.54499",
       "latitude": "23.711853",
