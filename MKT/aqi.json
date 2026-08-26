@@ -1,6 +1,6 @@
 {
   "source": "data.gov.tw AQI JSON resource",
-  "updated_at_utc": "2026-08-26T03:12:59.314740+00:00",
+  "updated_at_utc": "2026-08-26T04:06:46.626791+00:00",
   "records": [
     {
       "sitename": "基隆",
@@ -14,9 +14,9 @@
       "o3_8hr": "8",
       "pm10": "14",
       "pm2.5": "6",
-      "no2": "",
-      "nox": "",
-      "no": "",
+      "no2": "12",
+      "nox": "16.7",
+      "no": "4.5",
       "wind_speed": "1.2",
       "wind_direc": "19",
       "publishtime": "2026/08/26 11:00:00",
